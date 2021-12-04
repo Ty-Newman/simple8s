@@ -3,8 +3,10 @@ import random
 import nextcord
 from dotenv.main import load_dotenv
 from nextcord.ext import commands
+from multiprocessing.connection import Listener
+from nextcord.ext.commands import view
 
-client = nextcord.Client()
+#client = nextcord.Client()
 
 def main():
     load_dotenv()
@@ -19,10 +21,8 @@ def main():
     @client.event
     async def on_message(message):
         mess = message.content
-
         if message.author == client.user:
             return
-
         if mess.startswith('$hello'):
             await message.channel.send('Hello!')
         elif mess.startswith('?bigmantime'):
@@ -30,6 +30,7 @@ def main():
                 await message.channel.send('https://www.youtube.com/watch?v=2XDfp4_eZf4')
             else:
                 await message.channel.send('https://www.youtube.com/watch?v=N06fZxoUQx0')
+        await client.process_commands(message)
 
     @client.command()
     async def test(ctx):
