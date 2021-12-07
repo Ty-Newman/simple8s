@@ -1,5 +1,4 @@
 import os
-import random
 import nextcord
 from dotenv.main import load_dotenv
 from nextcord.ext import commands
@@ -10,12 +9,12 @@ def main():
     load_dotenv()
     token = os.getenv("TOKEN")
     client = commands.Bot(command_prefix="!")
-    BotModRole = 'Codi Boi'
+    bot_mod_role = 'Codi Boi'
 
-    matches = {} # change to a class that contains a full member list, teams 1 and 2, sorted boolean, and the match id
+    matches = {}
     queues = {}
-    queueMax = 8
-    currentId = 0
+    queue_max = 8
+    current_id = 0
 
     @client.event
     async def on_ready():
@@ -39,32 +38,32 @@ def main():
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
     async def q(ctx):
-        qcheck = False
+        q_check = False
 
         if not ctx.channel in queues:
             queues.update({ctx.channel: []})
 
         for user in queues[ctx.channel]:
             if user == ctx.author:
-                qcheck = True
+                q_check = True
 
-        if not qcheck:
+        if not q_check:
             queues[ctx.channel].append(ctx.author)
             await ctx.send(f'{ctx.author.mention} has been added to the queue.')
 
-            if len(queues[ctx.channel]) >= queueMax:
-                userList = queues.pop(ctx.channel)
+            if len(queues[ctx.channel]) >= queue_max:
+                user_list = queues.pop(ctx.channel)
                 
-                nonlocal currentId
-                matches.update({f'{currentId}': userList})
+                nonlocal current_id
+                matches.update({f'{current_id}': user_list})
 
                 atMembers = f''
-                for user in matches[f'{currentId}']:
+                for user in matches[f'{current_id}']:
                     atMembers += f'{user.mention} '
-                atMembers += f'\nYour match is now ready!\nYour match id is: {currentId}.'
+                atMembers += f'\nYour match is now ready!\nYour match id is: {current_id}.'
                 await ctx.send(atMembers)
                 
-                currentId += 1
+                current_id += 1
                 
         else:
             await ctx.send(f'{ctx.author.mention} is already in this queue.')
@@ -72,13 +71,13 @@ def main():
     # Leave queue command
     @client.command(aliases=['L', 'leave', 'Leave'])
     async def l(ctx):
-        qCheck = False
+        q_check = False
         if ctx.channel in queues:
             for user in queues[ctx.channel]:
                 if user == ctx.author:
-                    qcheck = True
+                    q_check = True
 
-            if qcheck:
+            if q_check:
                 queues[ctx.channel].remove(ctx.author)
                 await ctx.send(f'{ctx.author.name} has been removed from the queue.')
             else:
@@ -124,7 +123,7 @@ def main():
 # Admin Commands -----------------------------------------------
     # Clear active queue command
     @client.command()
-    @commands.has_role(BotModRole)
+    @commands.has_role(bot_mod_role)
     async def clear(ctx):
         if ctx.channel in queues:
             queues.pop(ctx.channel)
@@ -133,18 +132,18 @@ def main():
             await ctx.send(f'This channel does not currently have an active queue.')
 
     @client.command()
-    @commands.has_role(BotModRole)
-    async def cancel(ctx):
+    @commands.has_role(bot_mod_role)
+    async def cancel(ctx, id):
         await ctx.send('place holder text')
 
     @client.command()
-    @commands.has_role(BotModRole)
-    async def change(ctx):
+    @commands.has_role(bot_mod_role)
+    async def change(ctx, id, result):
         await ctx.send('place holder text')
 
     @client.command()
-    @commands.has_role(BotModRole)
-    async def delete(ctx):
+    @commands.has_role(bot_mod_role)
+    async def delete(ctx, id):
         await ctx.send('place holder text')
 
     client.run(token)
