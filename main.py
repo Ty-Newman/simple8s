@@ -12,6 +12,7 @@ def main():
     bot_mod_role = 'Codi Boi'
 
     matches = {}
+    match_players = {}
     queues = {}
     queue_max = 8
     current_id = 0
@@ -51,11 +52,14 @@ def main():
             queues[ctx.channel].append(ctx.author)
             await ctx.send(f'{ctx.author.mention} has been added to the queue.')
 
+            # Queue pops, Generates a new match and @s members with their match id
             if len(queues[ctx.channel]) >= queue_max:
-                user_list = queues.pop(ctx.channel)
-                
                 nonlocal current_id
-                matches.update({f'{current_id}': user_list})
+                players = queues.pop(ctx.channel)
+
+                match_players.update({current_id: players})
+                new_match = match(current_id, players)
+                matches.update({f'{current_id}': new_match})
 
                 atMembers = f''
                 for user in matches[f'{current_id}']:
@@ -98,7 +102,18 @@ def main():
 
     @client.command(aliases=['R', 'random', 'Random'])
     async def r(ctx):
-        await ctx.send('place holder text')
+        found_id = is_in_match(ctx.author, match_players)
+
+        if fount_id == '?'
+            await ctx.send(f'{ctx.author.name} has no matches to vote in.')
+        else:
+            match_in = matches[found_id]
+            if match_in.add_vote(ctx.author, 'random'):
+                await ctx.send(f'{ctx.author.name} has voted for random.')
+            else:
+                await ctx.send(f'{ctx.author.name} has already voted for random.')
+
+            match_in.count_votes(queue_max)
 
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
@@ -148,6 +163,12 @@ def main():
 
     client.run(token)
 # _______________________________________________ End of main _______________________________________________
+
+def is_in_match(player, players):
+    for match in players:
+        if player in match
+            return key=match.get
+    return '?'
 
 # Calls main (run with: "python3 main.py") __________________________________________________________________
 if __name__ == '__main__':
