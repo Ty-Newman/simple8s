@@ -18,8 +18,8 @@ def main():
     matches = {}
     match_players = {}
     queues = {}
-    queue_max = 2
-    current_id = 0
+    queue_max = 8
+    current_id = 0 # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
 
     @client.event
     async def on_ready():
@@ -108,20 +108,8 @@ def main():
     # Randomly selects teams
     @client.command(aliases=['R', 'random', 'Random'])
     async def r(ctx):
-        found_id = is_in_match(ctx.author, match_players)
-
-        if found_id == '?':
-            await ctx.send(f'{ctx.author.name} has no matches to vote in.')
-        else:
-            match_in = matches[found_id]
-            if match_in.add_vote(ctx.author, 'random'):
-                await ctx.send(f"{ctx.author.name}'s vote has been updated.")
-            else:
-                await ctx.send(f'{ctx.author.name} has voted for: random team selection.')
-
-            if match_in.count_votes(queue_max):
-                await ctx.send(f'Teams have been assigned for match of match id: {found_id}')
-
+        await create_vote(ctx, 'random')
+        
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
         await ctx.send('place holder text')
@@ -132,33 +120,38 @@ def main():
 
     @client.command()
     async def o(ctx):
-        found_id = is_in_match(ctx.author, match_players)
+        await create_vote(ctx, 'ordered')
 
-        if found_id == '?':
-            await ctx.send(f'{ctx.author.name} has no matches to vote in.')
-        else:
-            match_in = matches[found_id]
-            if match_in.add_vote(ctx.author, 'ordered'):
-                await ctx.send(f"{ctx.author.name}'s vote has been updated.")
-            else:
-                await ctx.send(f'{ctx.author.name} has voted for: order joined team selection.')
-
-            if match_in.count_votes(queue_max):
-                await ctx.send(f'Teams have been assigned for match of match id: {found_id}')
-
-# 
+# Post queue pop commands
     @client.command()
     async def active(ctx):
 
         await ctx.send('There are no unreported matches.')
     
+    # Reports the match for scoring based on the given id and result and then stores the match in the database.
     @client.command()
     async def report(ctx, id, result):
-        await ctx.send('place holder text')
+        if id in matches:
+            if ctx.author in match_players[id]:
+                if matches[id].sorted:
+                    # TODO: Store the result in a database
+                    # NOTE: Make this happen inside of match.py so that the variables are easily accessible.
 
+                    match_players.pop(f'{id}')
+                    matches.pop(f'{id}')
+                    await ctx.send(f'No database to store the match, but match {id} has been completed anyway.')
+                else:
+                    await ctx.send(f'Match {id} has not even started yet, get to voting.')
+            else:
+                await ctx.send(f'Bruh, match {id} is not even your match.')
+        else:
+            await ctx.send(f'Match {id} is not an active match to report on.')
+
+# Misc. commands
+    # Check the mmr of the player who ran the command followed by the top x of their rank?
     @client.command()
     async def leaderboard(ctx):
-        await ctx.send('place holder text')
+        await ctx.send('No database currently implemented')
 
 # Admin Commands -----------------------------------------------
     # Clear active queue command
@@ -171,7 +164,7 @@ def main():
         else:
             await ctx.send(f'This channel does not currently have an active queue.')
 
-    # Clear active match based on the given id
+    # Cancel active match based on the given id
     @client.command()
     @commands.has_role(bot_mod_role)
     async def cancel(ctx, id):
@@ -189,14 +182,32 @@ def main():
     async def delete(ctx, id):
         await ctx.send('place holder text')
 
+# Support methods
+    # Returns the match id for the given player
+    def get_player_match_id(player):
+        for match in match_players:
+            if player in match_players[match]:
+                return match
+        return '?'
+
+    # Sends the vote of given vote type to the match object of the player who typed the command
+    async def create_vote(ctx, vote_type):
+        found_id = get_player_match_id(ctx.author)
+
+        if found_id == '?':
+            await ctx.send(f'{ctx.author.name} has no matches to vote in.')
+        else:
+            match_in = matches[found_id]
+            if match_in.add_vote(ctx.author, vote_type):
+                await ctx.send(f"{ctx.author.name}'s vote has been updated.")
+            else:
+                await ctx.send(f'{ctx.author.name} has voted for: {vote_type} team selection.')
+
+            if match_in.count_votes(queue_max):
+                await ctx.send(f'Teams have been assigned for match of match id: {found_id}')
+
     client.run(token)
 # _______________________________________________ End of main _______________________________________________
-
-def is_in_match(player, match_players):
-    for match in match_players:
-        if player in match_players[match]:
-            return match
-    return '?'
 
 # Calls main (run with: "python3 main.py") __________________________________________________________________
 if __name__ == '__main__':

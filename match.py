@@ -11,13 +11,13 @@ class Match:
         self.votes = {}
     
 # Vote processing methods -------------------------------------------------
-    def add_vote(self, player, vote):
+    def add_vote(self, player, vote_type):
         already_voted = False
 
         if player in self.votes:
             already_voted = True   
 
-        self.votes.update({player:vote})
+        self.votes.update({player:vote_type})
         return already_voted
 
     def recorded_voters(self):
@@ -38,11 +38,7 @@ class Match:
 
         return missing_list
 
-    def count_votes(self, queue_max):
-        # Checks for less than number of member votes
-        #if len(self.votes) < queue_max:
-        #    return False
-        
+    def count_votes(self, queue_max):        
         vote_tally = {
             'r_count': 0,
             'c_count': 0,
@@ -62,13 +58,13 @@ class Match:
 
         for tally in vote_tally:
             if vote_tally[tally] >= self.number_of_players/2:
-                if vote_tally == 'r_count':
+                if tally == 'r_count':
                     self.randomize()
-                elif vote_tally == 'c_count':
+                elif tally == 'c_count':
                     self.captains()
-                elif vote_tally == 'b_count':
+                elif tally == 'b_count':
                     self.balance()
-                elif vote_tally == 'o_count':
+                elif tally == 'o_count':
                     self.ordered()
                 
                 return True
@@ -103,12 +99,10 @@ class Match:
     
 # Selection mode commands -------------------------------------------------
     def randomize(self):
-        unsorted_players = self.players
-        
+        unsorted_players = self.players.copy()
         for i in range(int(self.number_of_players/2)):
             self.team_1.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
             self.team_2.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
-
         self.sorted = True
 
     def captains(self):
