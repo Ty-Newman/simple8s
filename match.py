@@ -1,14 +1,23 @@
 import random
 
 class Match:
-    def __init__(self, id, players):
+    def __init__(self, id, players, guild):
         self.id = id
+        self.guild = guild
         self.sorted = False
         self.players = players # List
         self.number_of_players = len(self.players)
+        self.host = self.players[random.randint(0, self.number_of_players-1)]
         self.team_1 = []
         self.team_2 = []
         self.votes = {}
+        self.modes = { # TODO: make modes of maps instead of maps of modes
+            "Live Fire": ['Slayer', 'Odd Ball', 'Strongholds'],
+            "Recahrge": ['Slayer', 'Odd Ball', 'Strongholds'],
+            "Streets": ['Slayer', 'Odd Ball', 'Strongholds'],
+            "Aquarius": ['CTF', 'Slayer'],
+            "Bazaar": ['CTF', 'Slayer']
+        }
     
 # Vote processing methods -------------------------------------------------
     def add_vote(self, player, vote_type):
@@ -81,8 +90,7 @@ class Match:
 
         # Will result in "True" if a tie was found
         if max_counter > 1:
-            # There was a tie found, must prompt the user for additional attention
-            # NOTE: Ask what should happen here if no majority
+            # NOTE: Randomize winning results
             return False
 
         # Call method for winning selection mode

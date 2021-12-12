@@ -1,5 +1,6 @@
 import os
 import match
+import discord
 import nextcord
 from dotenv.main import load_dotenv
 from nextcord.ext import commands
@@ -12,17 +13,19 @@ def main():
     load_dotenv()
     token = os.getenv("TOKEN")
     client = commands.Bot(command_prefix="!")
-    bot_mod_role = 'Codi Boi'
+    bot_mod_role = '8s Bot Mod'
 
     # Logic Variables
     matches = {}
     match_players = {}
     queues = {}
-    queue_max = 1
-    current_id = 0 # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
+    queue_max = 2
+    current_id = 0
 
     @client.event
     async def on_ready():
+        # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
+        # NOTE: Get the latest current ID from the database.
         print(f"{client.user.name} has connected to Discord!")
 
     @client.event
@@ -43,56 +46,47 @@ def main():
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
     async def q(ctx):
-        q_check = False
-
+        print(f'{ctx.guild}')
         if not ctx.channel in queues:
             queues.update({ctx.channel: []})
 
-        for user in queues[ctx.channel]:
-            if user == ctx.author:
-                q_check = True
-
-        if not q_check:
+        if not is_in_queue(ctx):
             queues[ctx.channel].append(ctx.author)
             await ctx.send(f'{ctx.author.mention} has been added to the queue.')
 
             # Queue pops, Generates a new match and @s members with their match id
             if len(queues[ctx.channel]) >= queue_max:
                 nonlocal current_id
+                this_id = f'{current_id}'
                 players = queues.pop(ctx.channel)
 
-                match_players.update({f'{current_id}': players})
-                new_match = match.Match(f'{current_id}', players)
-                matches.update({f'{current_id}': new_match})
+                match_players.update({this_id: players})
+                new_match = match.Match(this_id, players)
+                matches.update({this_id: new_match})
 
-                atMembers = f''
+                msg = f''
                 for player in players:
-                    atMembers += f'{player.mention} '
-                atMembers += f'\nYour match is now ready!\nYour match id is: {current_id}.'
-                await ctx.send(atMembers)
+                    msg += f'{player.mention} '
+                msg += f'\nYour match is now ready!\nYour match id is: {this_id}\nMatch host: {matches[this_id].host.mention}'
+                await ctx.send(msg)
                 
                 current_id += 1
-                
         else:
-            await ctx.send(f'{ctx.author.mention} is already in this queue.')
+            channel = get_player_queue_channel(ctx)
+            await ctx.send(f'{ctx.author.mention} is already in a queue.')
     
     # Leave queue command
     @client.command(aliases=['L', 'leave', 'Leave'])
     async def l(ctx):
-        q_check = False
-        if ctx.channel in queues:
-            for user in queues[ctx.channel]:
-                if user == ctx.author:
-                    q_check = True
-
-            if q_check:
-                queues[ctx.channel].remove(ctx.author)
-                await ctx.send(f'{ctx.author.name} has been removed from the queue.')
-            else:
-                await ctx.send(f'{ctx.author.name} is not currently in this queue.')
+        if is_in_queue(ctx):
+            channel = get_player_queue_channel(ctx)
+            queues[channel].remove(ctx.author)
+            if len(queues[channel]) == 0:
+                queues.pop(channel)
+            await ctx.send(f'{ctx.author.name} has been removed from their queue.')
         else:
-            await ctx.send('This channel does not currently have an active queue.')
-
+            await ctx.send(f'{ctx.author.name} is not currently in a queue.')
+    
     # Status of active queue command
     @client.command(aliases=['S', 'status', 'Status'])
     async def s(ctx):
@@ -118,21 +112,25 @@ def main():
     async def b(ctx):
         await ctx.send('Coming Soon:tm:')
 
-    @client.command(aliases=['O', 'ordered', 'Ordered'])
-    async def o(ctx):
-        await create_vote(ctx, 'ordered')
+    # @client.command(aliases=['O', 'ordered', 'Ordered'])
+    # async def o(ctx):
+    #     await create_vote(ctx, 'ordered')
 
 # Post queue pop commands
     # Lists the id of all the unreported matches
     @client.command()
     async def active(ctx):
         if len(matches) > 0:
-            msg = 'Here are the id numbers of all of the current, unreported matches:\n'
+            msg = 'List of all the active matches:\n'
             for match in matches:
-                msg += f'{match}\n'
+                msg += f'Id: {match} - '
+                if matches[match].sorted:
+                    msg += 'Waiting to be reported\n'
+                else:
+                    msg += 'Waiting for votes on team selection mode\n'
             await ctx.send(msg)
         else:
-            await ctx.send('There are no unreported matches.')
+            await ctx.send('There are no active matches.')
     
     # Reports the match for scoring based on the given id and result and then stores the match in the database.
     @client.command()
@@ -159,7 +157,19 @@ def main():
     async def leaderboard(ctx):
         await ctx.send('No database currently implemented')
 
+    # Custom help command
+    async def help(ctx, overload):
+        print(f'{overload}')
+
 # Admin Commands -----------------------------------------------
+    # Adds the bot_mod_role to the server if it doesn't exist
+    @client.command(aliases=['make_role'])
+    @commands.has_permissions(manage_roles=True)
+    async def create_role(ctx):
+        if not role_exists(ctx, bot_mod_role):
+            await ctx.guild.create_role(name=bot_mod_role, color=discord.Color(0xff0000))
+            print(f'Role {bot_mod_role} has been added to {ctx.guild.name}')
+    
     # Clear active queue command
     @client.command()
     @commands.has_role(bot_mod_role)
@@ -191,7 +201,22 @@ def main():
     async def delete(ctx, id):
         await ctx.send('place holder text')
 
-# Support methods
+# Support methods ---------------------------------------------------------------------
+    # Returns the queue channel associated with the given player
+    def get_player_queue_channel(ctx):
+        for channel in queues:
+            for user in queues[channel]:
+                if user == ctx.author:
+                    return channel
+
+    # Returns true if the command author is in a queue
+    def is_in_queue(ctx):
+        for channel in queues:
+            for user in queues[channel]:
+                if user == ctx.author:
+                    return True
+        return False
+
     # Returns the match id for the given player
     def get_player_match_id(player):
         for match in match_players:
@@ -212,8 +237,24 @@ def main():
             else:
                 await ctx.send(f'{ctx.author.name} has voted for: {vote_type} team selection.')
 
+            # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
             if match_in.count_votes(queue_max):
-                await ctx.send(f'Teams have been assigned for match of match id: {found_id}')
+                msg = f'Teams have been assigned for match of match id: {found_id}\nMatch host: {matches[found_id].host.name}\n\nTeam 1:'
+                for player in matches[found_id].team_1:
+                    msg += f' {player.mention}'
+                msg += '\nTeam 2:'
+                for player in matches[found_id].team_2:
+                    msg += f' {player.mention}'
+                await ctx.send(msg)
+
+    # Checks to see if the role of given name exists aleady
+    def role_exists(ctx, name):
+        roles = ctx.guild.roles
+        for role in roles:
+            if (role.name == name):
+                return True
+
+        return False
 
     client.run(token)
 # _______________________________________________ End of main _______________________________________________
