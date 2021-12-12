@@ -4,6 +4,7 @@ import discord
 import nextcord
 from dotenv.main import load_dotenv
 from nextcord.ext import commands
+from datetime import datetime
 from multiprocessing.connection import Listener
 from nextcord.ext.commands import view
 
@@ -16,11 +17,11 @@ def main():
     bot_mod_role = '8s Bot Mod'
 
     # Logic Variables
+    current_id = 0
+    queue_max = 1
+    queues = {}
     matches = {}
     match_players = {}
-    queues = {}
-    queue_max = 2
-    current_id = 0
 
     @client.event
     async def on_ready():
@@ -42,11 +43,22 @@ def main():
         #         await message.channel.send('https://www.youtube.com/watch?v=N06fZxoUQx0')
         await client.process_commands(message)
 
+# THE TEST ZONE
+    @client.command(aliases=['T', 'test', 'Test'])
+    async def t(ctx):
+        #await ctx.send('Poggers')
+        embed = nextcord.Embed(title=f'Match 69', description=f'Match host: 69 man', color=0x9e10e6, timestamp=datetime.today())
+        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Team 1", value='oop', inline=True)
+        embed.add_field(name="Team 2", value='ya blew it', inline=True)
+        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
+        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
+        await ctx.send(embed=embed)
+        
 # Queue Commands -----------------------------------------------
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
     async def q(ctx):
-        print(f'{ctx.guild}')
         if not ctx.channel in queues:
             queues.update({ctx.channel: []})
 
@@ -61,7 +73,7 @@ def main():
                 players = queues.pop(ctx.channel)
 
                 match_players.update({this_id: players})
-                new_match = match.Match(this_id, players)
+                new_match = match.Match(this_id, players, ctx.guild)
                 matches.update({this_id: new_match})
 
                 msg = f''
@@ -112,9 +124,9 @@ def main():
     async def b(ctx):
         await ctx.send('Coming Soon:tm:')
 
-    # @client.command(aliases=['O', 'ordered', 'Ordered'])
-    # async def o(ctx):
-    #     await create_vote(ctx, 'ordered')
+    @client.command(aliases=['O', 'ordered', 'Ordered'])
+    async def o(ctx):
+        await create_vote(ctx, 'ordered')
 
 # Post queue pop commands
     # Lists the id of all the unreported matches
@@ -141,8 +153,7 @@ def main():
                     # TODO: Store the result in a database
                     # NOTE: Make this happen inside of match.py so that the variables are easily accessible.
 
-                    match_players.pop(f'{id}')
-                    matches.pop(f'{id}')
+                    await match_clear(ctx, id)
                     await ctx.send(f'No database to store the match, but match {id} has been completed anyway.')
                 else:
                     await ctx.send(f'Match {id} has not even started yet, get to voting.')
@@ -185,8 +196,7 @@ def main():
     @commands.has_role(bot_mod_role)
     async def cancel(ctx, id):
         if id in matches:
-            match_players.pop(f'{id}')
-            matches.pop(f'{id}')
+            await match_clear(ctx, id)
             await ctx.send(f'Match of match id: {id} has been cancelled.')
         else:
             await ctx.send(f'Match of match id {id} is not an active match.')
@@ -239,13 +249,52 @@ def main():
 
             # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
             if match_in.count_votes(queue_max):
-                msg = f'Teams have been assigned for match of match id: {found_id}\nMatch host: {matches[found_id].host.name}\n\nTeam 1:'
-                for player in matches[found_id].team_1:
-                    msg += f' {player.mention}'
-                msg += '\nTeam 2:'
-                for player in matches[found_id].team_2:
-                    msg += f' {player.mention}'
-                await ctx.send(msg)
+                #if match_in captains check I think?
+                await match_setup(ctx, found_id)
+
+
+
+    # Sets up the voice channels and posts the teams after voting
+    async def match_setup(ctx, id):
+        nonlocal matches
+
+        if len(matches[id].team_1) > 0:
+            team_1 = ''
+        else:
+            team_1 = 'empty'
+
+        for player in matches[id].team_1:
+            team_1 += f' {player.name}\n'
+
+        if len(matches[id].team_2) > 0:
+            team_2 = ''
+        else:
+            team_2 = 'empty'
+
+        for player in matches[id].team_2:
+            team_2 += f' {player.name}\n'
+
+        embed = nextcord.Embed(title=f'Match {id}', description=f'Match host: {matches[id].host.name}', color=0x9e10e6, timestamp=datetime.today())
+        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Team 1", value=team_1, inline=True)
+        embed.add_field(name="Team 2", value=team_2, inline=True)
+        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
+        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
+        await ctx.send(embed=embed)
+
+        matches[id].vcs.append(await ctx.guild.create_category(f'Match {id}'))
+        matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 1 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
+        matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 2 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
+
+    # Clears the vcs of the match that has been reported
+    async def match_clear(ctx, id):
+        if len(matches[id].vcs) > 0:
+            await matches[id].vcs[2].delete()
+            await matches[id].vcs[1].delete()
+            await matches[id].vcs[0].delete()
+            
+        match_players.pop(id)
+        matches.pop(id)
 
     # Checks to see if the role of given name exists aleady
     def role_exists(ctx, name):
