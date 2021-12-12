@@ -195,7 +195,7 @@ def main():
     # Returns the match id for the given player
     def get_player_match_id(player):
         for match in match_players:
-            if player in match_players[match]:
+            if player in match_players[match] and not matches[match].sorted:
                 return match
         return '?'
 
