@@ -18,7 +18,7 @@ def main():
     matches = {}
     match_players = {}
     queues = {}
-    queue_max = 8
+    queue_max = 1
     current_id = 0 # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
 
     @client.event
@@ -112,21 +112,27 @@ def main():
         
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
-        await ctx.send('place holder text')
+        await ctx.send('Coming Soon:tm:')
 
-    @client.command()
+    @client.command(aliases=['B', 'balanced', 'Balanced'])
     async def b(ctx):
-        await ctx.send('place holder text')
+        await ctx.send('Coming Soon:tm:')
 
-    @client.command()
+    @client.command(aliases=['O', 'ordered', 'Ordered'])
     async def o(ctx):
         await create_vote(ctx, 'ordered')
 
 # Post queue pop commands
+    # Lists the id of all the unreported matches
     @client.command()
     async def active(ctx):
-
-        await ctx.send('There are no unreported matches.')
+        if len(matches) > 0:
+            msg = 'Here are the id numbers of all of the current, unreported matches:\n'
+            for match in matches:
+                msg += f'{match}\n'
+            await ctx.send(msg)
+        else:
+            await ctx.send('There are no unreported matches.')
     
     # Reports the match for scoring based on the given id and result and then stores the match in the database.
     @client.command()
@@ -168,9 +174,12 @@ def main():
     @client.command()
     @commands.has_role(bot_mod_role)
     async def cancel(ctx, id):
-        match_players.pop(f'{id}')
-        matches.pop(f'{id}')
-        await ctx.send(f'Match of match id: {id} has been cancelled.')
+        if id in matches:
+            match_players.pop(f'{id}')
+            matches.pop(f'{id}')
+            await ctx.send(f'Match of match id: {id} has been cancelled.')
+        else:
+            await ctx.send(f'Match of match id {id} is not an active match.')
 
     @client.command()
     @commands.has_role(bot_mod_role)
