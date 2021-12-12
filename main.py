@@ -1,8 +1,10 @@
 import os
 import match
+import discord
 import nextcord
 from dotenv.main import load_dotenv
 from nextcord.ext import commands
+from datetime import datetime
 from multiprocessing.connection import Listener
 from nextcord.ext.commands import view
 
@@ -12,17 +14,19 @@ def main():
     load_dotenv()
     token = os.getenv("TOKEN")
     client = commands.Bot(command_prefix="!")
-    bot_mod_role = 'Codi Boi'
+    bot_mod_role = '8s Bot Mod'
 
     # Logic Variables
+    current_id = 0
+    queue_max = 1
+    queues = {}
     matches = {}
     match_players = {}
-    queues = {}
-    queue_max = 8
-    current_id = 0 # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
 
     @client.event
     async def on_ready():
+        # TODO: after the database is implemented, there needs to be a way to set this to an id 1 higher than the highest in the DB.
+        # NOTE: Get the latest current ID from the database.
         print(f"{client.user.name} has connected to Discord!")
 
     @client.event
@@ -39,60 +43,62 @@ def main():
         #         await message.channel.send('https://www.youtube.com/watch?v=N06fZxoUQx0')
         await client.process_commands(message)
 
+# THE TEST ZONE
+    @client.command(aliases=['T', 'test', 'Test'])
+    async def t(ctx):
+        #await ctx.send('Poggers')
+        embed = nextcord.Embed(title=f'Match 69', description=f'Match host: 69 man', color=0x9e10e6, timestamp=datetime.today())
+        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Team 1", value='oop', inline=True)
+        embed.add_field(name="Team 2", value='ya blew it', inline=True)
+        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
+        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
+        await ctx.send(embed=embed)
+        
 # Queue Commands -----------------------------------------------
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
     async def q(ctx):
-        q_check = False
-
         if not ctx.channel in queues:
             queues.update({ctx.channel: []})
 
-        for user in queues[ctx.channel]:
-            if user == ctx.author:
-                q_check = True
-
-        if not q_check:
+        if not is_in_queue(ctx):
             queues[ctx.channel].append(ctx.author)
             await ctx.send(f'{ctx.author.mention} has been added to the queue.')
 
             # Queue pops, Generates a new match and @s members with their match id
             if len(queues[ctx.channel]) >= queue_max:
                 nonlocal current_id
+                this_id = f'{current_id}'
                 players = queues.pop(ctx.channel)
 
-                match_players.update({f'{current_id}': players})
-                new_match = match.Match(f'{current_id}', players)
-                matches.update({f'{current_id}': new_match})
+                match_players.update({this_id: players})
+                new_match = match.Match(this_id, players, ctx.guild)
+                matches.update({this_id: new_match})
 
-                atMembers = f''
+                msg = f''
                 for player in players:
-                    atMembers += f'{player.mention} '
-                atMembers += f'\nYour match is now ready!\nYour match id is: {current_id}.'
-                await ctx.send(atMembers)
+                    msg += f'{player.mention} '
+                msg += f'\nYour match is now ready!\nYour match id is: {this_id}\nMatch host: {matches[this_id].host.mention}'
+                await ctx.send(msg)
                 
                 current_id += 1
-                
         else:
-            await ctx.send(f'{ctx.author.mention} is already in this queue.')
+            channel = get_player_queue_channel(ctx)
+            await ctx.send(f'{ctx.author.mention} is already in a queue.')
     
     # Leave queue command
     @client.command(aliases=['L', 'leave', 'Leave'])
     async def l(ctx):
-        q_check = False
-        if ctx.channel in queues:
-            for user in queues[ctx.channel]:
-                if user == ctx.author:
-                    q_check = True
-
-            if q_check:
-                queues[ctx.channel].remove(ctx.author)
-                await ctx.send(f'{ctx.author.name} has been removed from the queue.')
-            else:
-                await ctx.send(f'{ctx.author.name} is not currently in this queue.')
+        if is_in_queue(ctx):
+            channel = get_player_queue_channel(ctx)
+            queues[channel].remove(ctx.author)
+            if len(queues[channel]) == 0:
+                queues.pop(channel)
+            await ctx.send(f'{ctx.author.name} has been removed from their queue.')
         else:
-            await ctx.send('This channel does not currently have an active queue.')
-
+            await ctx.send(f'{ctx.author.name} is not currently in a queue.')
+    
     # Status of active queue command
     @client.command(aliases=['S', 'status', 'Status'])
     async def s(ctx):
@@ -112,21 +118,31 @@ def main():
         
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
-        await ctx.send('place holder text')
+        await ctx.send('Coming Soon:tm:')
 
-    @client.command()
+    @client.command(aliases=['B', 'balanced', 'Balanced'])
     async def b(ctx):
-        await ctx.send('place holder text')
+        await ctx.send('Coming Soon:tm:')
 
-    @client.command()
+    @client.command(aliases=['O', 'ordered', 'Ordered'])
     async def o(ctx):
         await create_vote(ctx, 'ordered')
 
 # Post queue pop commands
+    # Lists the id of all the unreported matches
     @client.command()
     async def active(ctx):
-
-        await ctx.send('There are no unreported matches.')
+        if len(matches) > 0:
+            msg = 'List of all the active matches:\n'
+            for match in matches:
+                msg += f'Id: {match} - '
+                if matches[match].sorted:
+                    msg += 'Waiting to be reported\n'
+                else:
+                    msg += 'Waiting for votes on team selection mode\n'
+            await ctx.send(msg)
+        else:
+            await ctx.send('There are no active matches.')
     
     # Reports the match for scoring based on the given id and result and then stores the match in the database.
     @client.command()
@@ -137,8 +153,7 @@ def main():
                     # TODO: Store the result in a database
                     # NOTE: Make this happen inside of match.py so that the variables are easily accessible.
 
-                    match_players.pop(f'{id}')
-                    matches.pop(f'{id}')
+                    await match_clear(ctx, id)
                     await ctx.send(f'No database to store the match, but match {id} has been completed anyway.')
                 else:
                     await ctx.send(f'Match {id} has not even started yet, get to voting.')
@@ -153,7 +168,19 @@ def main():
     async def leaderboard(ctx):
         await ctx.send('No database currently implemented')
 
+    # Custom help command
+    async def help(ctx, overload):
+        print(f'{overload}')
+
 # Admin Commands -----------------------------------------------
+    # Adds the bot_mod_role to the server if it doesn't exist
+    @client.command(aliases=['make_role'])
+    @commands.has_permissions(manage_roles=True)
+    async def create_role(ctx):
+        if not role_exists(ctx, bot_mod_role):
+            await ctx.guild.create_role(name=bot_mod_role, color=discord.Color(0xff0000))
+            print(f'Role {bot_mod_role} has been added to {ctx.guild.name}')
+    
     # Clear active queue command
     @client.command()
     @commands.has_role(bot_mod_role)
@@ -168,9 +195,11 @@ def main():
     @client.command()
     @commands.has_role(bot_mod_role)
     async def cancel(ctx, id):
-        match_players.pop(f'{id}')
-        matches.pop(f'{id}')
-        await ctx.send(f'Match of match id: {id} has been cancelled.')
+        if id in matches:
+            await match_clear(ctx, id)
+            await ctx.send(f'Match of match id: {id} has been cancelled.')
+        else:
+            await ctx.send(f'Match of match id {id} is not an active match.')
 
     @client.command()
     @commands.has_role(bot_mod_role)
@@ -182,11 +211,26 @@ def main():
     async def delete(ctx, id):
         await ctx.send('place holder text')
 
-# Support methods
+# Support methods ---------------------------------------------------------------------
+    # Returns the queue channel associated with the given player
+    def get_player_queue_channel(ctx):
+        for channel in queues:
+            for user in queues[channel]:
+                if user == ctx.author:
+                    return channel
+
+    # Returns true if the command author is in a queue
+    def is_in_queue(ctx):
+        for channel in queues:
+            for user in queues[channel]:
+                if user == ctx.author:
+                    return True
+        return False
+
     # Returns the match id for the given player
     def get_player_match_id(player):
         for match in match_players:
-            if player in match_players[match]:
+            if player in match_players[match] and not matches[match].sorted:
                 return match
         return '?'
 
@@ -203,8 +247,63 @@ def main():
             else:
                 await ctx.send(f'{ctx.author.name} has voted for: {vote_type} team selection.')
 
+            # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
             if match_in.count_votes(queue_max):
-                await ctx.send(f'Teams have been assigned for match of match id: {found_id}')
+                #if match_in captains check I think?
+                await match_setup(ctx, found_id)
+
+
+
+    # Sets up the voice channels and posts the teams after voting
+    async def match_setup(ctx, id):
+        nonlocal matches
+
+        if len(matches[id].team_1) > 0:
+            team_1 = ''
+        else:
+            team_1 = 'empty'
+
+        for player in matches[id].team_1:
+            team_1 += f' {player.name}\n'
+
+        if len(matches[id].team_2) > 0:
+            team_2 = ''
+        else:
+            team_2 = 'empty'
+
+        for player in matches[id].team_2:
+            team_2 += f' {player.name}\n'
+
+        embed = nextcord.Embed(title=f'Match {id}', description=f'Match host: {matches[id].host.name}', color=0x9e10e6, timestamp=datetime.today())
+        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Team 1", value=team_1, inline=True)
+        embed.add_field(name="Team 2", value=team_2, inline=True)
+        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
+        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
+        await ctx.send(embed=embed)
+
+        matches[id].vcs.append(await ctx.guild.create_category(f'Match {id}'))
+        matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 1 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
+        matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 2 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
+
+    # Clears the vcs of the match that has been reported
+    async def match_clear(ctx, id):
+        if len(matches[id].vcs) > 0:
+            await matches[id].vcs[2].delete()
+            await matches[id].vcs[1].delete()
+            await matches[id].vcs[0].delete()
+            
+        match_players.pop(id)
+        matches.pop(id)
+
+    # Checks to see if the role of given name exists aleady
+    def role_exists(ctx, name):
+        roles = ctx.guild.roles
+        for role in roles:
+            if (role.name == name):
+                return True
+
+        return False
 
     client.run(token)
 # _______________________________________________ End of main _______________________________________________

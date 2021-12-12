@@ -1,14 +1,26 @@
 import random
+import math
 
 class Match:
-    def __init__(self, id, players):
+    def __init__(self, id, players, guild):
         self.id = id
-        self.sorted = False
+        self.guild = guild
         self.players = players # List
         self.number_of_players = len(self.players)
+        self.host = self.players[random.randint(0, self.number_of_players-1)]
         self.team_1 = []
         self.team_2 = []
+        
+        self.sorted = False
         self.votes = {}
+        self.selection_mode = ''
+        self.vcs = []
+        self.game_modes = { # TODO: make modes of maps instead of maps of modes
+            'Slayer': ['Live Fire', 'Recharge', 'Streets', 'Aquarius', 'Bazaar'],
+            'Odd Ball': ['Live Fire', 'Recharge', 'Streets'],
+            'Strongholds': ['Live Fire', 'Recharge', 'Streets'],
+            'CTF': ['Aquarius', 'Bazaar']
+        }
     
 # Vote processing methods -------------------------------------------------
     def add_vote(self, player, vote_type):
@@ -46,6 +58,7 @@ class Match:
             'o_count': 0
         }
 
+        # Tally votes
         for vote in self.votes.values():
             if vote == 'random':
                 vote_tally.update({'r_count': vote_tally['r_count']+1})
@@ -56,6 +69,7 @@ class Match:
             elif vote == 'ordered':
                 vote_tally.update({'o_count': vote_tally['o_count']+1})
 
+        # If 50% of the players vote for the same mode, it gets selected
         for tally in vote_tally:
             if vote_tally[tally] >= self.number_of_players/2:
                 if tally == 'r_count':
@@ -69,21 +83,25 @@ class Match:
                 
                 return True
 
-        # Find the largest value (always returns the first highest instance of the max number)
+        # Make sure that everyone has a chance to vote
+        if len(votes) >= queue_max:
+            return False
+
+        # Find the largest value
         vote_win = max(vote_tally, key=vote_tally.get)
         max_value = vote_tally[vote_win]
 
         # Checks to see if there is a tie for the largest number of votes (See comment above for why)
         max_counter = 0
-        for vote in vote_tally.values():
-            if vote == max_value:
+        tie_votes = []
+        for vote in vote_tally:
+            if vote_tally[vote] == max_value:
                 max_counter += 1
+                tie_votes.append(vote)
 
-        # Will result in "True" if a tie was found
+        # Randomizes the winning modes
         if max_counter > 1:
-            # There was a tie found, must prompt the user for additional attention
-            # NOTE: Ask what should happen here if no majority
-            return False
+            vote_win = tie_votes[random.randint(0, len(tie_votes)-1)]
 
         # Call method for winning selection mode
         if vote_win == 'r_count':
@@ -100,9 +118,10 @@ class Match:
 # Selection mode commands -------------------------------------------------
     def randomize(self):
         unsorted_players = self.players.copy()
-        for i in range(int(self.number_of_players/2)):
+        for i in range(math.ceil(self.number_of_players/2)):
             self.team_1.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
-            self.team_2.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
+            if len(unsorted_players) > 0:
+                self.team_2.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
         self.sorted = True
 
     def captains(self):
@@ -119,10 +138,10 @@ class Match:
 
     # Assign teams based on the order they joined the queue
     def ordered(self):
-        for i in range(0, (self.number_of_players/2)):
-            self.team_1.append(players[i])
+        for i in range(math.ceil(self.number_of_players/2)):
+            self.team_1.append(self.players[i])
 
-        for i in range(self.number_of_players/2, self.number_of_players):
-            self.team_2.append(players[i])
+        for i in range(math.ceil(self.number_of_players/2), self.number_of_players):
+            self.team_2.append(self.players[i])
 
         self.sorted = True
