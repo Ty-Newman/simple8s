@@ -249,8 +249,8 @@ def main():
 
             # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
             if match_in.count_votes(queue_max):
-                #if match_in captains check I think?
-                await match_setup(ctx, found_id)
+                if match_in.selection_mode != 'captains':
+                    await match_setup(ctx, found_id)
 
 
 

@@ -12,6 +12,7 @@ class Match:
         self.team_2 = []
         
         self.sorted = False
+        self.unsorted_players = self.players.copy()
         self.votes = {}
         self.selection_mode = ''
         self.vcs = []
@@ -116,24 +117,35 @@ class Match:
         return True
     
 # Selection mode commands -------------------------------------------------
+    # Randomly assigns teams
     def randomize(self):
-        unsorted_players = self.players.copy()
         for i in range(math.ceil(self.number_of_players/2)):
-            self.team_1.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
-            if len(unsorted_players) > 0:
-                self.team_2.append(unsorted_players.pop(random.randint(0, len(unsorted_players)-1)))
+            self.team_1.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
+            if len(self.unsorted_players) > 0:
+                self.team_2.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
+
+        self.selection_mode = 'random'
         self.sorted = True
 
+    # Assign 2 players the role of captain and then dm them to start picking teams
     def captains(self):
-        # Randomly select 2 captains from player list
+        # Randomly assign captains
+        self.captain_1 = self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1))
+        self.team_1.append(self.captain_1)
+        self.captain_2 = self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1))
+        self.team_2.append(self.captain_2)
+
         # learn how to dm captins
         # they react with who they want (or respond)
+
+        self.selection_mode = 'captains'
         self.sorted = True
 
     # Assign teams based on their combined mmr
     def balance(self):
-        # TODO: Write algorithm to balance total mmr
+        # TODO: Write algorithm to balance total mmr until this algorithm is written, use win/loss ratio instread
         # NOTE: Cannot be completed until the server mmr is saved to a DB
+        self.selection_mode = 'balance'
         self.sorted = True
 
     # Assign teams based on the order they joined the queue
@@ -144,4 +156,5 @@ class Match:
         for i in range(math.ceil(self.number_of_players/2), self.number_of_players):
             self.team_2.append(self.players[i])
 
+        self.selection_mode = 'ordered'
         self.sorted = True
