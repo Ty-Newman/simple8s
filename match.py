@@ -10,13 +10,16 @@ class Match:
         self.host = self.players[random.randint(0, self.number_of_players-1)]
         self.team_1 = []
         self.team_2 = []
-        
+
+        self.team_captains = []
+        self.messages = []
+                
         self.sorted = False
         self.unsorted_players = self.players.copy()
         self.votes = {}
         self.selection_mode = ''
         self.vcs = []
-        self.game_modes = { # TODO: make modes of maps instead of maps of modes
+        self.game_modes = { # TODO: implement
             'Slayer': ['Live Fire', 'Recharge', 'Streets', 'Aquarius', 'Bazaar'],
             'Odd Ball': ['Live Fire', 'Recharge', 'Streets'],
             'Strongholds': ['Live Fire', 'Recharge', 'Streets'],
@@ -128,15 +131,12 @@ class Match:
         self.sorted = True
 
     # Assign 2 players the role of captain and then dm them to start picking teams
-    def captains(self):
+    async def captains(self):
         # Randomly assign captains
-        self.captain_1 = self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1))
-        self.team_1.append(self.captain_1)
-        self.captain_2 = self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1))
-        self.team_2.append(self.captain_2)
-
-        # learn how to dm captins
-        # they react with who they want (or respond)
+        self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
+        #self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
+        self.team_1.append(self.team_captains[0])
+        #self.team_2.append(self.team_captains[1])
 
         self.selection_mode = 'captains'
         self.sorted = True

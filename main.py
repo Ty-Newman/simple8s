@@ -46,15 +46,13 @@ def main():
 # THE TEST ZONE
     @client.command(aliases=['T', 'test', 'Test'])
     async def t(ctx):
-        #await ctx.send('Poggers')
-        embed = nextcord.Embed(title=f'Match 69', description=f'Match host: 69 man', color=0x9e10e6, timestamp=datetime.today())
-        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
-        embed.add_field(name="Team 1", value='oop', inline=True)
-        embed.add_field(name="Team 2", value='ya blew it', inline=True)
-        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
-        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
-        await ctx.send(embed=embed)
-        
+        print('call\n')
+        for member in ctx.guild.fetch_members(limit=None):
+            print(f'searching...\n {member}')
+            if member.name == 'Anelius':
+                await member.send('Poggers')
+        print('finished\n\n\n\n')
+                
 # Queue Commands -----------------------------------------------
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
@@ -115,18 +113,28 @@ def main():
     @client.command(aliases=['R', 'random', 'Random'])
     async def r(ctx):
         await create_vote(ctx, 'random')
-        
+    
+    # Assigns captains that then select their team members
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
-        await ctx.send('Coming Soon:tm:')
+        id = get_player_match_id(ctx.author)
+        await create_vote(ctx, 'captains')
 
-    @client.command(aliases=['B', 'balanced', 'Balanced'])
+        # Send messages to the captains
+        matches[id].messages.append(await matches[id].captain_1.send("Pick a player"))
+        #matches[id].messages.append(await matches[id].captain_2.send("Pick a player"))
+
+    # TODO: Balances the teams according to the players' MMR
+    @client.command(aliases=['B', 'balance', 'Balance', 'balanced', 'Balanced'])
     async def b(ctx):
         await ctx.send('Coming Soon:tm:')
-
-    @client.command(aliases=['O', 'ordered', 'Ordered'])
-    async def o(ctx):
-        await create_vote(ctx, 'ordered')
+        return
+        await create_vote(ctx, 'balance')
+        
+    # Assigns teams based on the order the players queued
+    # @client.command(aliases=['O', 'ordered', 'Ordered'])
+    # async def o(ctx):
+    #     await create_vote(ctx, 'ordered')
 
 # Post queue pop commands
     # Lists the id of all the unreported matches
@@ -236,23 +244,21 @@ def main():
 
     # Sends the vote of given vote type to the match object of the player who typed the command
     async def create_vote(ctx, vote_type):
-        found_id = get_player_match_id(ctx.author)
+        id = get_player_match_id(ctx.author)
 
-        if found_id == '?':
+        if id == '?':
             await ctx.send(f'{ctx.author.name} has no matches to vote in.')
         else:
-            match_in = matches[found_id]
-            if match_in.add_vote(ctx.author, vote_type):
+            match = matches[id]
+            if match.add_vote(ctx.author, vote_type):
                 await ctx.send(f"{ctx.author.name}'s vote has been updated.")
             else:
                 await ctx.send(f'{ctx.author.name} has voted for: {vote_type} team selection.')
 
             # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
-            if match_in.count_votes(queue_max):
-                if match_in.selection_mode != 'captains':
-                    await match_setup(ctx, found_id)
-
-
+            if match.count_votes(queue_max):
+                if match.selection_mode != 'captains':
+                    await match_setup(ctx, id)
 
     # Sets up the voice channels and posts the teams after voting
     async def match_setup(ctx, id):
