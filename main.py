@@ -46,12 +46,9 @@ def main():
 # THE TEST ZONE
     @client.command(aliases=['T', 'test', 'Test'])
     async def t(ctx):
-        print('call\n')
-        for member in ctx.guild.fetch_members(limit=None):
-            print(f'searching...\n {member}')
-            if member.name == 'Anelius':
-                await member.send('Poggers')
-        print('finished\n\n\n\n')
+        msg = await ctx.author.send('test')
+        print(f'{msg}')
+        print('Test command complete')
                 
 # Queue Commands -----------------------------------------------
     # Queue join command
@@ -121,8 +118,13 @@ def main():
         await create_vote(ctx, 'captains')
 
         # Send messages to the captains
-        matches[id].messages.append(await matches[id].captain_1.send("Pick a player"))
-        #matches[id].messages.append(await matches[id].captain_2.send("Pick a player"))
+        print(f'{matches[id].team_captains[0]}')
+        print(f'{ctx.author}')
+
+        msg = await matches[id].team_captains[0].send('test')
+        matches[id].messages.append(msg)
+        #matches[id].messages.append(await matches[id].team_captains[1].send("Pick a player"))
+         
 
     # TODO: Balances the teams according to the players' MMR
     @client.command(aliases=['B', 'balance', 'Balance', 'balanced', 'Balanced'])

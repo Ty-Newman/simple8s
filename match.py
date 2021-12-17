@@ -131,7 +131,7 @@ class Match:
         self.sorted = True
 
     # Assign 2 players the role of captain and then dm them to start picking teams
-    async def captains(self):
+    def captains(self):
         # Randomly assign captains
         self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
         #self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
