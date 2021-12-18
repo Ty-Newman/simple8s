@@ -61,6 +61,13 @@ def main():
             await test_message.add_reaction(emoji)
 
         print('Test command complete')
+
+    @client.command()
+    async def fake(ctx):
+        fake_players = [ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author]
+        new_match = match.Match('-1', fake_players, ctx.guild)
+        matches.update({'-1': new_match})
+        match_players.update({'-1': fake_players})
                 
 # Queue Commands -----------------------------------------------
     # Queue join command
@@ -75,21 +82,8 @@ def main():
 
             # Queue pops, Generates a new match and @s members with their match id
             if len(queues[ctx.channel]) >= queue_max:
-                nonlocal current_id
-                this_id = f'{current_id}'
-                players = queues.pop(ctx.channel)
+                create_match(ctx)
 
-                match_players.update({this_id: players})
-                new_match = match.Match(this_id, players, ctx.guild)
-                matches.update({this_id: new_match})
-
-                msg = f''
-                for player in players:
-                    msg += f'{player.mention} '
-                msg += f'\nYour match is now ready!\nYour match id is: {this_id}\nMatch host: {matches[this_id].host.mention}'
-                await ctx.send(msg)
-                
-                current_id += 1
         else:
             channel = get_player_queue_channel(ctx)
             await ctx.send(f'{ctx.author.mention} is already in a queue.')
@@ -172,7 +166,7 @@ def main():
             msg = 'List of all the active matches:\n'
             for match in matches:
                 msg += f'Id: {match} - '
-                if matches[match].sorted:
+                if matches[match].mode_selected:
                     msg += 'Waiting to be reported\n'
                 else:
                     msg += 'Waiting for votes on team selection mode\n'
@@ -185,7 +179,7 @@ def main():
     async def report(ctx, id, result):
         if id in matches:
             if ctx.author in match_players[id]:
-                if matches[id].sorted:
+                if matches[id].mode_selected:
                     # TODO: Store the result in a database
                     # NOTE: Make this happen inside of match.py so that the variables are easily accessible.
 
@@ -263,10 +257,28 @@ def main():
                     return True
         return False
 
+    # Creates a new match
+    def create_match(ctx):
+        nonlocal current_id
+        this_id = f'{current_id}'
+        players = queues.pop(ctx.channel)
+
+        match_players.update({this_id: players})
+        new_match = match.Match(this_id, players, ctx.guild)
+        matches.update({this_id: new_match})
+
+        msg = f''
+        for player in players:
+            msg += f'{player.mention} '
+        msg += f'\nYour match is now ready!\nYour match id is: {this_id}\nMatch host: {matches[this_id].host.mention}'
+        await ctx.send(msg)
+        
+        current_id += 1
+
     # Returns the match id for the given player
     def get_player_match_id(player):
         for match in match_players:
-            if player in match_players[match] and not matches[match].sorted:
+            if player in match_players[match] and (not matches[match].mode_selected or matches[match].selection_mode == ''):
                 return match
         return '?'
 
@@ -348,6 +360,7 @@ def main():
         if not found:
             return
 
+        id = get_player_match_id(payload.member)
         #TODO: Check to see if that user is in a match and is a captain
         
         #TODO: Add player to team their team if they are unassigned

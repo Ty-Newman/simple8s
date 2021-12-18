@@ -14,7 +14,7 @@ class Match:
         self.team_captains = []
         self.messages = []
                 
-        self.sorted = False
+        self.mode_selected = False
         self.unsorted_players = self.players.copy()
         self.votes = {}
         self.selection_mode = ''
@@ -128,7 +128,7 @@ class Match:
                 self.team_2.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
 
         self.selection_mode = 'random'
-        self.sorted = True
+        self.mode_selected = True
 
     # Assign 2 players the role of captain and then dm them to start picking teams
     def captains(self):
@@ -141,14 +141,14 @@ class Match:
             self.team_2.append(self.team_captains[1])
 
         self.selection_mode = 'captains'
-        self.sorted = True
+        self.mode_selected = True
 
     # Assign teams based on their combined mmr
     def balance(self):
         # TODO: Write algorithm to balance total mmr until this algorithm is written, use win/loss ratio instread
         # NOTE: Cannot be completed until the server mmr is saved to a DB
         self.selection_mode = 'balance'
-        self.sorted = True
+        self.mode_selected = True
 
     # Assign teams based on the order they joined the queue
     def ordered(self):
@@ -159,4 +159,8 @@ class Match:
             self.team_2.append(self.players[i])
 
         self.selection_mode = 'ordered'
-        self.sorted = True
+        self.mode_selected = True
+    
+# TODO: Game mode and map selection
+    def generate_maps(self):
+        return True
