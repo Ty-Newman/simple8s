@@ -134,9 +134,11 @@ class Match:
     def captains(self):
         # Randomly assign captains
         self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
-        #self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
         self.team_1.append(self.team_captains[0])
-        #self.team_2.append(self.team_captains[1])
+        
+        if len(self.unsorted_players) > 0:
+            self.team_captains.append(self.unsorted_players.pop(random.randint(0, len(self.unsorted_players)-1)))
+            self.team_2.append(self.team_captains[1])
 
         self.selection_mode = 'captains'
         self.sorted = True

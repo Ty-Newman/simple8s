@@ -12,8 +12,10 @@ def main():
 # Variable declarations
     # Bot variables
     load_dotenv()
+    intents = nextcord.Intents.default()
+    intents.reactions = True
     token = os.getenv("TOKEN")
-    client = commands.Bot(command_prefix="!")
+    client = commands.Bot(command_prefix="!", intents=intents)
     bot_mod_role = '8s Bot Mod'
 
     # Logic Variables
@@ -22,6 +24,10 @@ def main():
     queues = {}
     matches = {}
     match_players = {}
+    emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣']
+
+    # Testing variables
+    test_message = ''
 
     @client.event
     async def on_ready():
@@ -46,8 +52,14 @@ def main():
 # THE TEST ZONE
     @client.command(aliases=['T', 'test', 'Test'])
     async def t(ctx):
-        msg = await ctx.author.send('test')
-        print(f'{msg}')
+        embed = nextcord.Embed(title='Greetings captain!', description="It's time to select teams", color=0x9e10e6)
+        embed.add_field(name="Reaction", value='1️⃣\n2️⃣\n3️⃣\n4️⃣\n5️⃣\n6️⃣', inline=True)
+        embed.add_field(name="Members", value='guy1\nguy2\nguy3\nguy4\nguy5\nguy6', inline=True)
+        test_message = await ctx.send(embed=embed)
+
+        for emoji in emojis:
+            await test_message.add_reaction(emoji)
+
         print('Test command complete')
                 
 # Queue Commands -----------------------------------------------
@@ -117,12 +129,26 @@ def main():
         id = get_player_match_id(ctx.author)
         await create_vote(ctx, 'captains')
 
-        # Send messages to the captains
-        print(f'{matches[id].team_captains[0]}')
-        print(f'{ctx.author}')
+        # Create embeds for team selection
+        embed = nextcord.Embed(title=f'Match {id}', description=f'Match host: {matches[id].host.name}', color=0x9e10e6, timestamp=datetime.today())
+        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Team 1", value=team_1, inline=True)
+        embed.add_field(name="Team 2", value=team_2, inline=True)
+        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
+        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
 
-        msg = await matches[id].team_captains[0].send('test')
+        # Send embed to captain 1
+        msg = await matches[id].team_captains[0].send(embed=embed)
+        for i in range(len(matches[id].unsorted_players)):
+            msg.add_reaction(emojis[i])
         matches[id].messages.append(msg)
+
+        # Send embed to captain 2
+        # msg = await matches[id].team_captains[1].send(embed=embed)
+        # for i in range(len(matches[id].unsorted_players)):
+        #     msg.add_reaction(emojis[i])
+        # matches[id].messages.append(msg)
+
         #matches[id].messages.append(await matches[id].team_captains[1].send("Pick a player"))
          
 
@@ -290,6 +316,7 @@ def main():
         embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
         await ctx.send(embed=embed)
 
+        # Create a category of the match id and a vc for each team in the new category
         matches[id].vcs.append(await ctx.guild.create_category(f'Match {id}'))
         matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 1 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
         matches[id].vcs.append(await ctx.guild.create_voice_channel('Team 2 VC', category=matches[id].vcs[0], user_limit=queue_max/2))
@@ -304,11 +331,35 @@ def main():
         match_players.pop(id)
         matches.pop(id)
 
+    # Reacts to players reactions to a dm
+    @client.event
+    async def on_raw_reaction_add(payload):
+        # Exits if the bot adds a reaction
+        if payload.member == client.user:
+            return
+
+        # Check to see if the emoji is one of the ones in the list
+        found = False
+        for emoji in emojis:
+            if str(payload.emoji) in str(emoji):
+                found = True
+                print(f'{payload.member.name} reacted with {payload.emoji}')
+
+        if not found:
+            return
+
+        #TODO: Check to see if that user is in a match and is a captain
+        
+        #TODO: Add player to team their team if they are unassigned
+
+    def get_message(user):
+        return
+
     # Checks to see if the role of given name exists aleady
     def role_exists(ctx, name):
         roles = ctx.guild.roles
         for role in roles:
-            if (role.name == name):
+            if role.name == name:
                 return True
 
         return False
