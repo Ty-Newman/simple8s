@@ -20,7 +20,7 @@ def main():
 
     # Logic Variables
     current_id = 0
-    queue_max = 1
+    queue_max = 4
     queues = {}
     matches = {}
     match_players = {}
@@ -64,10 +64,15 @@ def main():
 
     @client.command()
     async def fake(ctx):
+        id = '-1'
         fake_players = [ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author, ctx.author]
-        new_match = match.Match('-1', fake_players, ctx.guild)
-        matches.update({'-1': new_match})
-        match_players.update({'-1': fake_players})
+        new_match = match.Match(id, fake_players, ctx.guild)
+        matches.update({id: new_match})
+        match_players.update({id: fake_players})
+        for i in range(8):
+            matches[id].votes.update({ctx.author: 'Random'})
+        matches[id].randomize()
+        await match_setup(ctx, id)
                 
 # Queue Commands -----------------------------------------------
     # Queue join command
@@ -82,7 +87,7 @@ def main():
 
             # Queue pops, Generates a new match and @s members with their match id
             if len(queues[ctx.channel]) >= queue_max:
-                create_match(ctx)
+                await create_match(ctx)
 
         else:
             channel = get_player_queue_channel(ctx)
@@ -120,30 +125,35 @@ def main():
     # Assigns captains that then select their team members
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
-        id = get_player_match_id(ctx.author)
         await create_vote(ctx, 'captains')
 
+        id = get_captains_match_id(ctx.author)
+        if id == None:
+            return
+        
         # Create embeds for team selection
-        embed = nextcord.Embed(title=f'Match {id}', description=f'Match host: {matches[id].host.name}', color=0x9e10e6, timestamp=datetime.today())
-        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
-        embed.add_field(name="Team 1", value=team_1, inline=True)
-        embed.add_field(name="Team 2", value=team_2, inline=True)
-        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
-        embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
+        embed1 = nextcord.Embed(title='Greetings captain 1!', description="It's your turn to select a member", color=0x9e10e6)
+        embed1.add_field(name="Reaction", value='1️⃣\n2️⃣\n3️⃣\n4️⃣\n5️⃣\n6️⃣', inline=True)
+        embed1.add_field(name="Members", value='guy1\nguy2\nguy3\nguy4\nguy5\nguy6', inline=True)
+        
+        embed2 = nextcord.Embed(title='Greetings captain 2!', description="Wait your fucking turn", color=0x9e10e6)
+        embed2.add_field(name="Reaction", value='1️⃣\n2️⃣\n3️⃣\n4️⃣\n5️⃣\n6️⃣', inline=True)
+        embed2.add_field(name="Members", value='guy1\nguy2\nguy3\nguy4\nguy5\nguy6', inline=True)
 
         # Send embed to captain 1
-        msg = await matches[id].team_captains[0].send(embed=embed)
+        msg1 = await matches[id].team_captains[0].send(embed=embed1)
+        
         for i in range(len(matches[id].unsorted_players)):
-            msg.add_reaction(emojis[i])
-        matches[id].messages.append(msg)
+            await msg1.add_reaction(emojis[i])
+        matches[id].messages.append(msg1)
 
         # Send embed to captain 2
-        # msg = await matches[id].team_captains[1].send(embed=embed)
-        # for i in range(len(matches[id].unsorted_players)):
-        #     msg.add_reaction(emojis[i])
-        # matches[id].messages.append(msg)
+        if len(matches[id].team_captains) > 1:
+            msg2 = await matches[id].team_captains[1].send(embed=embed2)
+            for i in range(len(matches[id].unsorted_players)):
+                await msg2.add_reaction(emojis[i])
+            matches[id].messages.append(msg2)
 
-        #matches[id].messages.append(await matches[id].team_captains[1].send("Pick a player"))
          
 
     # TODO: Balances the teams according to the players' MMR
@@ -258,7 +268,7 @@ def main():
         return False
 
     # Creates a new match
-    def create_match(ctx):
+    async def create_match(ctx):
         nonlocal current_id
         this_id = f'{current_id}'
         players = queues.pop(ctx.channel)
@@ -278,22 +288,29 @@ def main():
     # Returns the match id for the given player
     def get_player_match_id(player):
         for match in match_players:
-            if player in match_players[match] and (not matches[match].mode_selected or matches[match].selection_mode == ''):
+            if player in match_players[match] and not matches[match].mode_selected:
                 return match
-        return '?'
+        return None
+
+    # Returns the match id for the given player
+    def get_captains_match_id(player):
+        for match in match_players:
+            if player in match_players[match] and matches[match].selection_mode == 'captains':
+                return match
+        return None
 
     # Sends the vote of given vote type to the match object of the player who typed the command
     async def create_vote(ctx, vote_type):
         id = get_player_match_id(ctx.author)
 
-        if id == '?':
+        if id == None:
             await ctx.send(f'{ctx.author.name} has no matches to vote in.')
         else:
             match = matches[id]
             if match.add_vote(ctx.author, vote_type):
                 await ctx.send(f"{ctx.author.name}'s vote has been updated.")
             else:
-                await ctx.send(f'{ctx.author.name} has voted for: {vote_type} team selection.')
+                await ctx.send(f'{ctx.author.name} has voted for {vote_type} team selection.')
 
             # If the match vote is successful here, players have their match id, the host, and the 2 teams listed out with @s for the players
             if match.count_votes(queue_max):
@@ -308,23 +325,27 @@ def main():
             team_1 = ''
         else:
             team_1 = 'empty'
-
-        for player in matches[id].team_1:
-            team_1 += f' {player.name}\n'
-
+        
         if len(matches[id].team_2) > 0:
             team_2 = ''
         else:
             team_2 = 'empty'
 
+        for player in matches[id].team_1:
+            team_1 += f' {player.name}\n'
         for player in matches[id].team_2:
             team_2 += f' {player.name}\n'
 
+        mode_maps = ''
+        i = 1
+        for mode in matches[id].mode_maps:
+            mode_maps += f'\n**Round {i}**\t{mode}: {matches[id].mode_maps[mode]}'
+            i += 1
+
         embed = nextcord.Embed(title=f'Match {id}', description=f'Match host: {matches[id].host.name}', color=0x9e10e6, timestamp=datetime.today())
-        embed.set_thumbnail(url="https://cdnb.artstation.com/p/assets/images/images/039/864/575/original/glitch5970-ezgif-2-11094518d275.gif?1627169802")
+        embed.add_field(name="Game Modes", value=mode_maps, inline=True)
         embed.add_field(name="Team 1", value=team_1, inline=True)
         embed.add_field(name="Team 2", value=team_2, inline=True)
-        embed.set_image(url="https://marketresearchtelecast.com/wp-content/uploads/2021/12/1638971459_Halo-Infinite-graphics-and-FPS-comparison-on-Xbox-Series-vs-1280x720.jpg")
         embed.set_footer(text="Good Luck Spartans!", icon_url="https://halo.wiki.gallery/images/thumb/6/62/HINF_Fret.png/300px-HINF_Fret.png")
         await ctx.send(embed=embed)
 
@@ -347,26 +368,61 @@ def main():
     @client.event
     async def on_raw_reaction_add(payload):
         # Exits if the bot adds a reaction
-        if payload.member == client.user:
+        if payload.user_id == client.user.id:
             return
 
-        # Check to see if the emoji is one of the ones in the list
+        channel = client.get_channel(payload.channel_id)
+        if str(channel.type) != 'private':
+            return
+
+        user = channel.recipient
+        captain_id = find_player_captain(user)
+        if captain_id == -1:
+            return
+
+        id = get_captains_match_id(user)
+        if id == None:
+            return
+
+        # Check to see if the emoji is one of the ones in on the message
+        message = await channel.fetch_message(payload.message_id)
+        reactions = message.reactions
         found = False
-        for emoji in emojis:
-            if str(payload.emoji) in str(emoji):
+
+        i = 0
+        for reaction in reactions:
+            if str(payload.emoji) in str(reaction.emoji):
                 found = True
-                print(f'{payload.member.name} reacted with {payload.emoji}')
+                break
+            i += 1
 
         if not found:
             return
-
-        id = get_player_match_id(payload.member)
-        #TODO: Check to see if that user is in a match and is a captain
         
-        #TODO: Add player to team their team if they are unassigned
+        print(f'To sort: {matches[id].unsorted_players}\nTeam 1: {matches[id].team_1}\nTeam 2: {matches[id].team_2}\n\n')
 
-    def get_message(user):
-        return
+        # Adds player to team their team
+        if captain_id == 0:
+            matches[id].team_1.append(matches[id].unsorted_players.pop(i))
+        else:
+            matches[id].team_2.append(matches[id].unsorted_players.pop(i))
+
+        print(f'To sort: {matches[id].unsorted_players}\nTeam 1: {matches[id].team_1}\nTeam 2: {matches[id].team_2}\n\n')
+
+        #TODO: Update both captains' embeds
+        if matches[id].active_captain == 0:
+            matches[id].active_captain = 1
+        else:
+            matches[id].active_captain = 0
+
+    def find_player_captain(user):
+        for match in match_players:
+            if user in match_players[match]:
+                if matches[match].team_captains[0] == user and matches[match].active_captain == 0:
+                    return 0
+                if matches[match].team_captains[1] == user and matches[match].active_captain == 1:
+                    return 1
+        return -1
 
     # Checks to see if the role of given name exists aleady
     def role_exists(ctx, name):
