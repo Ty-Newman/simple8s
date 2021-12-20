@@ -86,7 +86,7 @@ def main():
         if ctx.channel in queues:
             names = ''
             for user in queues[ctx.channel]:
-                names += f'{user.name}'
+                names += f'{user.name} '
             
             embed = nextcord.Embed(title = f'The {ctx.channel.name} Queue Status', color = 0x9e10e6)
             embed.add_field(name = 'Members in the active queue:', value = names, inline = True)
