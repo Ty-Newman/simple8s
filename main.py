@@ -116,6 +116,11 @@ def main():
         if id == None:
             return
 
+        embed = nextcord.Embed(title = f'Match {id} has Voted for Captain Selection', description = 'Captains have been messeged with the selection forms,\nplease wait for them to finish picking teams...', color = 0x9e10e6)
+        embed.add_field(name = 'Captain 1', value = f'{matches[id].team_captains[0].name}', inline = True)
+        embed.add_field(name = 'Captain 2', value = f'{matches[id].team_captains[1].name}', inline = True)
+        await ctx.send(embed = embed)
+        
         # Send embed to captain 1
         msg1 = await matches[id].team_captains[0].send(embed = create_team_selection_embed(id, 0, False))
         
