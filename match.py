@@ -2,9 +2,10 @@ import random
 import math
 
 class Match:
-    def __init__(self, id, players, guild):
+    def __init__(self, id, players, guild, channel):
         self.id = id
         self.guild = guild
+        self.channel = channel
         self.players = players # List
         self.number_of_players = len(self.players)
         self.host = self.players[random.randint(0, self.number_of_players-1)]
