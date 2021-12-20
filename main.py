@@ -83,10 +83,14 @@ def main():
     @client.command(aliases=['S', 'status', 'Status'])
     async def s(ctx):
         '''Displays a list of all the people currently in this channel's queue'''
+        i = 0
         if ctx.channel in queues:
             names = ''
             for user in queues[ctx.channel]:
-                names += f'{user.name} '
+                names += f'{user.name}'
+                if i < len(queues[ctx.channel])-1:
+                    names += f', '
+                i += 1
             
             embed = nextcord.Embed(title = f'The {ctx.channel.name} Queue Status', color = 0x9e10e6)
             embed.add_field(name = 'Members in the active queue:', value = names, inline = True)
@@ -112,6 +116,11 @@ def main():
         if id == None:
             return
 
+        embed = nextcord.Embed(title = f'Match {id} has Voted for Captain Selection', description = 'Captains have been messeged with the selection forms,\nplease wait for them to finish picking teams...', color = 0x9e10e6)
+        embed.add_field(name = 'Captain 1', value = f'{matches[id].team_captains[0].name}', inline = True)
+        embed.add_field(name = 'Captain 2', value = f'{matches[id].team_captains[1].name}', inline = True)
+        await ctx.send(embed = embed)
+        
         # Send embed to captain 1
         msg1 = await matches[id].team_captains[0].send(embed = create_team_selection_embed(id, 0, False))
         
@@ -260,15 +269,20 @@ def main():
         new_match = match.Match(this_id, players, ctx.guild, ctx.channel)
         matches.update({this_id: new_match})
 
+        i = 0
         ats = ''
         names = ''
         for player in players:
             ats += f'{player.mention} '
-            names += f'{player.name}\n'
+            names += f'{player.name}'
+            if i < len(players)-1:
+                names += f', '
+            i += 1
         
-        embed = nextcord.Embed(title = 'Your match is now ready!', description = f'Match {this_id}', color = 0x9e10e6)
+        embed = nextcord.Embed(title = 'Your match is now ready!', description = f'Match ID: {this_id}', color = 0x9e10e6)
         embed.add_field(name = 'Match host', value = f'{matches[this_id].host.name}', inline = True)
         embed.add_field(name = 'Players', value = names, inline = True)
+        embed.add_field(name = 'Team Selection Mode Commands', value = '!c - Captains\n!r - Random', inline = False)
 
         await ctx.send(ats, embed = embed)
         
