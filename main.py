@@ -20,7 +20,7 @@ def main():
 
     # Logic Variables
     current_id = 0
-    queue_max = 8
+    queue_max = 6
     queues = {}
     matches = {}
     match_players = {}
@@ -45,7 +45,7 @@ def main():
         #     else:
         #         await message.channel.send('https://www.youtube.com/watch?v=N06fZxoUQx0')
         await client.process_commands(message)
-                
+
 # Queue Commands -----------------------------------------------
     # Queue join command
     @client.command(aliases=['Q', 'queue', 'Queue'])
@@ -65,7 +65,7 @@ def main():
         else:
             channel = get_player_queue_channel(ctx)
             await ctx.send(f'{ctx.author.mention} is already in a queue.')
-    
+
     # Leave queue command
     @client.command(aliases=['L', 'leave', 'Leave'])
     async def l(ctx):
@@ -78,7 +78,7 @@ def main():
             await ctx.send(f'{ctx.author.name} has been removed from their queue.')
         else:
             await ctx.send(f'{ctx.author.name} is not currently in a queue.')
-    
+
     # Status of active queue command
     @client.command(aliases=['S', 'status', 'Status'])
     async def s(ctx):
@@ -91,10 +91,10 @@ def main():
                 if i < len(queues[ctx.channel])-1:
                     names += f', '
                 i += 1
-            
+
             embed = nextcord.Embed(title = f'The {ctx.channel.name} Queue Status', color = 0x9e10e6)
             embed.add_field(name = 'Members in the active queue:', value = names, inline = True)
-            
+
             await ctx.send(embed = embed)
         else:
             await ctx.send('This channel does not currently have an active queue.')
@@ -105,7 +105,7 @@ def main():
     async def r(ctx):
         '''Adds your vote for random team selection mode. This randomly assigns teams'''
         await create_vote(ctx, 'random')
-    
+
     # Assigns captains that then select their team members
     @client.command(aliases=['C', 'captains', 'Captains'])
     async def c(ctx):
@@ -120,10 +120,10 @@ def main():
         embed.add_field(name = 'Captain 1', value = f'{matches[id].team_captains[0].name}', inline = True)
         embed.add_field(name = 'Captain 2', value = f'{matches[id].team_captains[1].name}', inline = True)
         await ctx.send(embed = embed)
-        
+
         # Send embed to captain 1
         msg1 = await matches[id].team_captains[0].send(embed = create_team_selection_embed(id, 0, False))
-        
+
         for i in range(len(matches[id].unsorted_players)):
             await msg1.add_reaction(emojis[i])
         matches[id].messages.append(msg1)
@@ -140,7 +140,7 @@ def main():
         await ctx.send('Coming Soon:tm:')
         return
         await create_vote(ctx, 'balance')
-        
+
     # Assigns teams based on the order the players queued
     # @client.command(aliases=['O', 'ordered', 'Ordered'])
     # async def o(ctx):
@@ -168,7 +168,7 @@ def main():
 
         else:
             await ctx.send('There are no active matches.')
-    
+
     # Reports the match for scoring based on the given id and result and then stores the match in the database.
     @client.command()
     async def report(ctx, id, result):
@@ -208,7 +208,7 @@ def main():
         if not role_exists(ctx, bot_mod_role):
             await ctx.guild.create_role(name=bot_mod_role, color=discord.Color(0xff0000))
             print(f'Role {bot_mod_role} has been added to {ctx.guild.name}')
-    
+
     # Clear active queue command
     @client.command()
     @commands.has_role(bot_mod_role)
@@ -278,14 +278,14 @@ def main():
             if i < len(players)-1:
                 names += f', '
             i += 1
-        
+
         embed = nextcord.Embed(title = 'Your match is now ready!', description = f'Match ID: {this_id}', color = 0x9e10e6)
         embed.add_field(name = 'Match host', value = f'{matches[this_id].host.name}', inline = True)
         embed.add_field(name = 'Players', value = names, inline = True)
         embed.add_field(name = 'Team Selection Mode Commands', value = '!c - Captains\n!r - Random', inline = False)
 
         await ctx.send(ats, embed = embed)
-        
+
         current_id += 1
 
     # Returns the match id for the given player
@@ -328,7 +328,7 @@ def main():
             team_1 = ''
         else:
             team_1 = 'empty'
-        
+
         if len(matches[id].team_2) > 0:
             team_2 = ''
         else:
@@ -363,7 +363,7 @@ def main():
             await matches[id].vcs[2].delete()
             await matches[id].vcs[1].delete()
             await matches[id].vcs[0].delete()
-            
+
         match_players.pop(id)
         matches.pop(id)
 
@@ -407,7 +407,7 @@ def main():
         # Returns if the emoji is not in the list of emojis on the message from the bot
         if i >= len(matches[id].unsorted_players):
             return
-        
+
         # Adds player to team their team
         if captain_id == 0:
             matches[id].team_1.append(matches[id].unsorted_players.pop(i))
@@ -419,14 +419,14 @@ def main():
             matches[id].active_captain = 1
         else:
             matches[id].active_captain = 0
-        
+
         # If there is only one unsorted player left, they are automatically assigned to team the next captain to vote is on
         if len(matches[id].unsorted_players) == 1:
             if matches[id].active_captain == 0:
                 matches[id].team_1.append(matches[id].unsorted_players.pop(0))
             else:
                 matches[id].team_2.append(matches[id].unsorted_players.pop(0))
-            
+
             await matches[id].messages[0].delete()
             matches[id].messages[0] = await matches[id].team_captains[0].send(embed = create_team_selection_embed(id, 0, True))
             await matches[id].messages[1].delete()
@@ -447,7 +447,7 @@ def main():
         if matches[id].active_captain == 1:
             for i in range(len(matches[id].unsorted_players)):
                 await matches[id].messages[1].add_reaction(emojis[i])
-    
+
     # Creates team selection embeds for the team captains based on the id and captian_id provided
     def create_team_selection_embed(id, captain_id, finalized):
         unsorted = ''
